@@ -1,0 +1,39 @@
+# .NET 通用构建产物
+**/bin/
+**/obj/
+**/packages/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# .NET 8 特定构建中间文件
+**/ref/
+**/refint/
+**/Controls/
+**/Resources/
+**/Views/
+
+# IDE 配置（Visual Studio/ Rider/ VS Code）
+.vs/
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.code-workspace
+
+# 日志/临时文件
+*.log
+*.tmp
+*.bak
+*.cache
+*.pdb
+*.msi
+*.iso
+*.zip
+
+# Windows 系统文件
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/

@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="StarDriver.Core/StarDriver.Core.csproj" />
+  <Project Path="StarDriver.Downloader/StarDriver.Downloader.csproj" />
+  <Project Path="StarDriver.UI/StarDriver.UI.csproj" />
+</Solution>

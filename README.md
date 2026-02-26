@@ -5,9 +5,10 @@
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows-blue.svg)](https://www.microsoft.com/windows)
-[![Made with Love](https://img.shields.io/badge/Made%20with-❤-ff69b4.svg)](https://github.com/yourusername/StarDriver)
+[![Made with Love](https://img.shields.io/badge/Made%20with-❤-ff69b4.svg)](https://github.com/Sakurayuki-A/StarDriver)
+[![Developer](https://img.shields.io/badge/Developer-Sakurayuki--A-blue.svg)](https://github.com/Sakurayuki-A)
 
-> ⚡ 本项目为爱发电，完全免费开源
+> ⚡ 本项目由 [Sakurayuki-A](https://github.com/Sakurayuki-A) 开发，为爱发电，完全免费开源
 
 ## ✨ 功能特性
 
@@ -247,6 +248,10 @@ engine.ConcurrentDownloads = 28; // 调整并发数
 
 本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件
 
+## �‍💻 开发者
+
+本项目由 [Sakurayuki-A](https://github.com/Sakurayuki-A) 独立开发并维护。
+
 ## 🙏 致谢
 
 - 灵感来源于 [PSO2-Launcher-CSharp](https://github.com/Leayal/PSO2-Launcher-CSharp)
@@ -274,5 +279,7 @@ engine.ConcurrentDownloads = 28; // 调整并发数
 
 ## 📧 联系方式
 
-如有问题或建议，请通过 [Issues](../../issues) 页面联系我们。
+- **开发者**: [Sakurayuki-A](https://github.com/Sakurayuki-A)
+- **问题反馈**: [Issues](../../issues)
+- **项目主页**: [GitHub](https://github.com/Sakurayuki-A/StarDriver)
 

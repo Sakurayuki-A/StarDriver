@@ -474,6 +474,74 @@ public partial class MainWindow : Window
         });
     }
 
+    public void StartVerification(string gameDir)
+    {
+        if (_isDownloading)
+        {
+            MessageBox.Show("已有任务正在进行中", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(gameDir))
+        {
+            MessageBox.Show("请先选择游戏路径", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        Task.Run(async () =>
+        {
+            try
+            {
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    _isDownloading = true;
+                    
+                    // 更新连接状态
+                    _downloadsPage.UpdateConnectionStatus("VERIFYING", 
+                        new SolidColorBrush(Color.FromRgb(255, 165, 0)));
+
+                    // 重置统计
+                    _totalBytesDownloaded = 0;
+                    _fileLastBytes.Clear();
+                    _downloadTimer.Restart();
+
+                    _downloadsPage.AppendLog("========================================");
+                    _downloadsPage.AppendLog($"开始验证游戏文件: {gameDir}");
+                    _downloadsPage.AppendLog("正在初始化验证引擎...");
+                });
+
+                // 创建下载引擎（用于验证）
+                _downloadEngine = new GameDownloadEngine(gameDir);
+                
+                // 订阅事件
+                _downloadEngine.ScanProgress += OnScanProgress;
+                _downloadEngine.DownloadProgress += OnDownloadProgress;
+                _downloadEngine.FileVerified += OnFileVerified;
+                _downloadEngine.DownloadCompleted += OnDownloadCompleted;
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    _downloadsPage.AppendLog("开始扫描和验证文件...");
+                    _downloadsPage.AppendLog("提示: 这将检查所有文件的MD5哈希值");
+                });
+
+                // 开始验证（使用MD5检查）
+                await _downloadEngine.ScanAndDownloadAsync(
+                    GameClientSelection.NGS_Full,
+                    FileScanFlags.MD5HashMismatch | FileScanFlags.FileSizeMismatch);
+            }
+            catch (Exception ex)
+            {
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    _downloadsPage.AppendLog($"✗ 错误: {ex.Message}");
+                    MessageBox.Show($"验证失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    ResetUI();
+                });
+            }
+        });
+    }
+
     public void PauseDownload()
     {
         _downloadEngine?.Cancel();
@@ -584,13 +652,26 @@ public partial class MainWindow : Window
                     new SolidColorBrush(Color.FromRgb(0, 255, 136)));
                 
                 _downloadsPage.AppendLog($"========================================");
-                _downloadsPage.AppendLog($"下载完成！");
+                _downloadsPage.AppendLog($"任务完成！");
                 _downloadsPage.AppendLog($"成功: {e.SucceededCount} 个文件");
                 _downloadsPage.AppendLog($"失败: {e.FailedCount} 个文件");
                 _downloadsPage.AppendLog($"========================================");
                 
+                // 判断是验证还是下载
+                string taskType = e.SucceededCount == 0 && e.FailedCount == 0 ? "验证" : "下载";
+                string message;
+                
+                if (e.SucceededCount == 0 && e.FailedCount == 0)
+                {
+                    message = "所有文件验证通过！\n\n游戏文件完整，无需修复。";
+                }
+                else
+                {
+                    message = $"{taskType}完成！\n\n成功: {e.SucceededCount} 个文件\n失败: {e.FailedCount} 个文件";
+                }
+                
                 MessageBox.Show(
-                    $"下载完成！\n\n成功: {e.SucceededCount} 个文件\n失败: {e.FailedCount} 个文件",
+                    message,
                     "完成",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
@@ -599,7 +680,7 @@ public partial class MainWindow : Window
             {
                 _downloadsPage.UpdateConnectionStatus("CANCELLED", 
                     new SolidColorBrush(Color.FromRgb(255, 68, 68)));
-                _downloadsPage.AppendLog("下载已取消");
+                _downloadsPage.AppendLog("任务已取消");
             }
 
             ResetUI();

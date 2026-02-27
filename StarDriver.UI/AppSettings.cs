@@ -21,6 +21,11 @@ public class AppSettings
     public int ConcurrentDownloads { get; set; } = 16;
     public string Language { get; set; } = "zh-CN";
     public DateTime? LastRunTime { get; set; }
+    
+    // 更新检查设置
+    public bool CheckForUpdatesAtStartup { get; set; } = true;
+    public bool PromptBeforeUpdate { get; set; } = true;
+    public string? LastKnownVersion { get; set; }
 
     /// <summary>
     /// 加载设置

@@ -46,9 +46,28 @@ public sealed class GameDownloadEngine : IDisposable
         if (string.IsNullOrWhiteSpace(baseDirectory))
             throw new ArgumentNullException(nameof(baseDirectory));
         
-        // 创建正确的PSO2目录结构：baseDirectory/PHANTASYSTARONLINE2_JP/pso2_bin/
-        var pso2Root = Path.Combine(baseDirectory, "PHANTASYSTARONLINE2_JP");
-        _gameDirectory = Path.Combine(pso2Root, "pso2_bin");
+        // 智能判断传入的路径类型
+        // 如果路径已经是 pso2_bin 目录，直接使用
+        // 否则，构建完整路径：baseDirectory/PHANTASYSTARONLINE2_JP/pso2_bin/
+        if (baseDirectory.EndsWith("pso2_bin", StringComparison.OrdinalIgnoreCase))
+        {
+            // 传入的已经是完整的游戏目录
+            _gameDirectory = baseDirectory;
+            Console.WriteLine($"[GameDownloadEngine] 使用完整游戏目录: {_gameDirectory}");
+        }
+        else if (baseDirectory.EndsWith("PHANTASYSTARONLINE2_JP", StringComparison.OrdinalIgnoreCase))
+        {
+            // 传入的是 PSO2 根目录，添加 pso2_bin
+            _gameDirectory = Path.Combine(baseDirectory, "pso2_bin");
+            Console.WriteLine($"[GameDownloadEngine] 从PSO2根目录构建: {_gameDirectory}");
+        }
+        else
+        {
+            // 传入的是基础目录，构建完整路径
+            var pso2Root = Path.Combine(baseDirectory, "PHANTASYSTARONLINE2_JP");
+            _gameDirectory = Path.Combine(pso2Root, "pso2_bin");
+            Console.WriteLine($"[GameDownloadEngine] 从基础目录构建: {_gameDirectory}");
+        }
         
         // 确保目录存在
         Directory.CreateDirectory(_gameDirectory);
@@ -108,8 +127,12 @@ public sealed class GameDownloadEngine : IDisposable
                 return;
             }
 
-            // 触发下载开始事件，传递总文件数
-            OnDownloadStarted(new DownloadStartedEventArgs(downloadQueue.Count));
+            // 计算需要下载的总大小
+            long totalDownloadSize = downloadQueue.Sum(item => item.PatchInfo.FileSize);
+            Console.WriteLine($"Total download size: {FormatBytes(totalDownloadSize)}");
+
+            // 触发下载开始事件，传递总文件数和总大小
+            OnDownloadStarted(new DownloadStartedEventArgs(downloadQueue.Count, totalDownloadSize));
 
             // 4. 并发下载
             await DownloadFilesAsync(downloadQueue, token);
@@ -217,13 +240,23 @@ public sealed class GameDownloadEngine : IDisposable
         var fileInfo = new FileInfo(localPath);
         var filename = item.GetFilenameWithoutAffix();
 
-        // 检查缓存
-        if (!scanFlags.HasFlag(FileScanFlags.ForceRefreshCache) &&
-            scanFlags.HasFlag(FileScanFlags.CacheOnly))
+        // 优先检查缓存（如果启用了 CacheOnly）
+        if (scanFlags.HasFlag(FileScanFlags.CacheOnly) && 
+            !scanFlags.HasFlag(FileScanFlags.ForceRefreshCache))
         {
+            // 检查缓存是否有效（文件修改时间和大小都匹配）
             if (_hashCache.IsValid(filename, fileInfo.LastWriteTimeUtc, fileInfo.Length))
             {
-                return false;
+                // 缓存有效，从缓存中获取MD5
+                if (_hashCache.TryGet(filename, out var cacheEntry))
+                {
+                    // 验证缓存中的MD5是否与服务器匹配
+                    if (string.Equals(cacheEntry.MD5Hash, item.MD5Hash, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // 文件完全匹配，跳过下载
+                        return false;
+                    }
+                }
             }
         }
 
@@ -751,6 +784,19 @@ public sealed class GameDownloadEngine : IDisposable
     private void OnScanProgress(ScanProgressEventArgs e) => ScanProgress?.Invoke(this, e);
     private void OnDownloadStarted(DownloadStartedEventArgs e) => DownloadStarted?.Invoke(this, e);
 
+    private static string FormatBytes(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len /= 1024;
+        }
+        return $"{len:0.##} {sizes[order]}";
+    }
+
     public void Dispose()
     {
         _cts?.Dispose();
@@ -823,9 +869,11 @@ public class ScanProgressEventArgs : EventArgs
 public class DownloadStartedEventArgs : EventArgs
 {
     public int TotalFilesToDownload { get; }
+    public long TotalDownloadSize { get; }
 
-    public DownloadStartedEventArgs(int totalFilesToDownload)
+    public DownloadStartedEventArgs(int totalFilesToDownload, long totalDownloadSize = 0)
     {
         TotalFilesToDownload = totalFilesToDownload;
+        TotalDownloadSize = totalDownloadSize;
     }
 }

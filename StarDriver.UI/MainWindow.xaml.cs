@@ -401,7 +401,7 @@ public partial class MainWindow : Window
         DownloadsNavButton.IsChecked = true;
     }
 
-    public void StartDownload(string? gameDir = null)
+    public void StartDownload(string? gameDir = null, bool isUpdate = false)
     {
         if (_isDownloading)
             return;
@@ -439,7 +439,15 @@ public partial class MainWindow : Window
                     _downloadTimer.Restart();
 
                     _downloadsPage.AppendLog("========================================");
-                    _downloadsPage.AppendLog($"开始下载到: {gameDir}");
+                    if (isUpdate)
+                    {
+                        _downloadsPage.AppendLog($"开始增量更新到: {gameDir}");
+                        _downloadsPage.AppendLog("提示: 仅下载缺失或损坏的文件");
+                    }
+                    else
+                    {
+                        _downloadsPage.AppendLog($"开始下载到: {gameDir}");
+                    }
                     _downloadsPage.AppendLog("正在初始化下载引擎...");
                 });
 
@@ -448,6 +456,7 @@ public partial class MainWindow : Window
                 
                 // 订阅事件
                 _downloadEngine.ScanProgress += OnScanProgress;
+                _downloadEngine.DownloadStarted += OnDownloadStarted;
                 _downloadEngine.DownloadProgress += OnDownloadProgress;
                 _downloadEngine.FileVerified += OnFileVerified;
                 _downloadEngine.DownloadCompleted += OnDownloadCompleted;
@@ -457,10 +466,29 @@ public partial class MainWindow : Window
                     _downloadsPage.AppendLog("开始扫描文件...");
                 });
 
+                // 根据是否是更新选择不同的扫描标志
+                FileScanFlags scanFlags;
+                if (isUpdate)
+                {
+                    // 更新模式：使用缓存 + MD5校验 + 文件大小校验
+                    // 这样只会下载缺失、损坏或大小不匹配的文件
+                    scanFlags = FileScanFlags.MD5HashMismatch | FileScanFlags.FileSizeMismatch | FileScanFlags.CacheOnly;
+                    
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        _downloadsPage.AppendLog("提示: 增量更新模式，利用缓存加速扫描");
+                    });
+                }
+                else
+                {
+                    // 全新下载模式：使用默认标志
+                    scanFlags = FileScanFlags.Default;
+                }
+
                 // 开始下载
                 await _downloadEngine.ScanAndDownloadAsync(
                     GameClientSelection.NGS_Full,
-                    FileScanFlags.Default);
+                    scanFlags);
             }
             catch (Exception ex)
             {
@@ -515,6 +543,7 @@ public partial class MainWindow : Window
                 
                 // 订阅事件
                 _downloadEngine.ScanProgress += OnScanProgress;
+                _downloadEngine.DownloadStarted += OnDownloadStarted;
                 _downloadEngine.DownloadProgress += OnDownloadProgress;
                 _downloadEngine.FileVerified += OnFileVerified;
                 _downloadEngine.DownloadCompleted += OnDownloadCompleted;
@@ -558,6 +587,27 @@ public partial class MainWindow : Window
             if (e.ScannedFiles % 1000 == 0 || e.ScannedFiles == e.TotalFiles)
             {
                 _downloadsPage.AppendLog($"扫描进度: {e.ScannedFiles}/{e.TotalFiles} ({e.ProgressPercentage:F1}%)");
+            }
+        });
+    }
+
+    private void OnDownloadStarted(object? sender, DownloadStartedEventArgs e)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            if (e.TotalFilesToDownload > 0)
+            {
+                var totalSize = FormatBytes(e.TotalDownloadSize);
+                _downloadsPage.AppendLog("========================================");
+                _downloadsPage.AppendLog($"需要下载: {e.TotalFilesToDownload} 个文件");
+                _downloadsPage.AppendLog($"总大小: {totalSize}");
+                _downloadsPage.AppendLog("========================================");
+            }
+            else
+            {
+                _downloadsPage.AppendLog("========================================");
+                _downloadsPage.AppendLog("所有文件已是最新，无需下载");
+                _downloadsPage.AppendLog("========================================");
             }
         });
     }
